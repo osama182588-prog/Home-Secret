@@ -84,8 +84,37 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // TODO: Send Discord notification to admin channel
-    // This would call the Discord bot API
+    // Send Discord notification to admin channel via bot API
+    if (process.env.BOT_API_URL && process.env.API_SECRET) {
+      try {
+        await fetch(`${process.env.BOT_API_URL}/api/verification/submit`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-secret': process.env.API_SECRET,
+          },
+          body: JSON.stringify({
+            attemptId: attempt.id,
+            user: {
+              discordId: attempt.user.discordId,
+              username: attempt.user.username,
+              avatar: attempt.user.avatar,
+            },
+            answers: attempt.answers.map(a => ({
+              question: a.question.content,
+              answer: a.answer,
+            })),
+            integrityFlags: {
+              copyPasteCount: attempt.copyPasteCount,
+              tabSwitchCount: attempt.tabSwitchCount,
+            },
+          }),
+        });
+      } catch (botError) {
+        console.error('Failed to notify Discord bot:', botError);
+        // Continue even if bot notification fails
+      }
+    }
 
     return NextResponse.json({
       success: true,

@@ -102,9 +102,18 @@ export async function handleVerificationSubmit(client: Client, data: Verificatio
 export async function handleButtonInteraction(client: Client, interaction: ButtonInteraction) {
   const [, action, attemptId] = interaction.customId.split('_');
   
-  // Check if user has reviewer role
+  // Check if user has any reviewer role (supports multiple role levels)
   const member = interaction.guild?.members.cache.get(interaction.user.id);
-  const hasReviewerRole = member?.roles.cache.has(process.env.REVIEWER_ROLE_ID!);
+  const reviewerRoleIds = process.env.REVIEWER_ROLE_IDS?.split(',') || [];
+  
+  // Also check single REVIEWER_ROLE_ID for backwards compatibility
+  if (process.env.REVIEWER_ROLE_ID) {
+    reviewerRoleIds.push(process.env.REVIEWER_ROLE_ID);
+  }
+  
+  const hasReviewerRole = reviewerRoleIds.some(roleId => 
+    member?.roles.cache.has(roleId.trim())
+  );
   
   if (!hasReviewerRole) {
     await interaction.reply({
