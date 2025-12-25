@@ -175,7 +175,7 @@ export async function handleButtonInteraction(client: Client, interaction: Butto
     });
 
     // Update roles via separate API call
-    const verificationData = await response.json();
+    const verificationData = (await response.json()) as any;
     if (verificationData.attempt?.user?.discordId) {
       await fetch(`${process.env.WEB_API_URL}/api/roles/update`, {
         method: 'POST',
