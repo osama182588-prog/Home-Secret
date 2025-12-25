@@ -1,0 +1,232 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model for Discord OAuth
+model User {
+  id            String    @id @default(cuid())
+  discordId     String    @unique
+  username      String
+  email         String?
+  avatar        String?
+  discriminator String?
+  
+  role          UserRole  @default(USER)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  verificationAttempts VerificationAttempt[]
+  adminDecisions       VerificationAttempt[] @relation("AdminDecisions")
+  auditLogs            AuditLog[]
+  
+  @@index([discordId])
+}
+
+enum UserRole {
+  USER
+  REVIEWER
+  SENIOR_REVIEWER
+  SUPERVISOR
+  ADMIN
+}
+
+// Rules Categories and Rules
+model RuleCategory {
+  id          String   @id @default(cuid())
+  name        String   // Arabic name
+  nameEn      String?  // English name (optional)
+  slug        String   @unique
+  description String?
+  order       Int      @default(0)
+  enabled     Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  rules       Rule[]
+  questions   Question[]
+  
+  @@index([slug])
+}
+
+model Rule {
+  id          String   @id @default(cuid())
+  title       String
+  content     String   @db.Text
+  order       Int      @default(0)
+  enabled     Boolean  @default(true)
+  
+  categoryId  String
+  category    RuleCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([categoryId])
+}
+
+// Question Bank
+model Question {
+  id          String       @id @default(cuid())
+  content     String       @db.Text  // The question text in Arabic
+  type        QuestionType
+  difficulty  Difficulty   @default(MEDIUM)
+  options     Json?        // For multiple choice: ["option1", "option2", ...]
+  correctAnswer String?    @db.Text  // For auto-scoring guidance
+  enabled     Boolean      @default(true)
+  
+  categoryId  String?
+  category    RuleCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  
+  answers     VerificationAnswer[]
+  
+  @@index([categoryId])
+  @@index([enabled])
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+  SHORT_ANSWER
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+// Verification Attempts
+model VerificationAttempt {
+  id              String               @id @default(cuid())
+  
+  userId          String
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  status          VerificationStatus   @default(PENDING)
+  
+  // Integrity flags
+  copyPasteCount  Int                  @default(0)
+  tabSwitchCount  Int                  @default(0)
+  suspiciousFlags Json?
+  
+  // AI scoring
+  aiScore         Float?
+  aiConfidence    Float?
+  aiNotes         String?              @db.Text
+  
+  // Admin decision
+  decidedById     String?
+  decidedBy       User?                @relation("AdminDecisions", fields: [decidedById], references: [id])
+  decidedAt       DateTime?
+  decisionNotes   String?              @db.Text
+  discordMessageId String?
+  
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  
+  answers         VerificationAnswer[]
+  
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum VerificationStatus {
+  PENDING
+  IN_REVIEW
+  PASSED
+  FAILED
+  BLOCKED
+}
+
+model VerificationAnswer {
+  id              String              @id @default(cuid())
+  
+  attemptId       String
+  attempt         VerificationAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  
+  questionId      String
+  question        Question            @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  
+  answer          String              @db.Text
+  isCorrect       Boolean?
+  
+  createdAt       DateTime            @default(now())
+  
+  @@index([attemptId])
+  @@index([questionId])
+}
+
+// Blacklist
+model Blacklist {
+  id          String    @id @default(cuid())
+  discordId   String    @unique
+  reason      String    @db.Text
+  isPermanent Boolean   @default(false)
+  expiresAt   DateTime?
+  
+  createdById String?
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@index([discordId])
+  @@index([expiresAt])
+}
+
+// Audit Log
+model AuditLog {
+  id          String   @id @default(cuid())
+  action      String
+  details     Json?
+  ipAddress   String?
+  userAgent   String?
+  
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([action])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// Settings for app configuration
+model Setting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([key])
+}
+
+// Discord configuration
+model DiscordConfig {
+  id                String   @id @default(cuid())
+  guildId           String   @unique
+  verifiedRoleId    String?
+  unverifiedRoleId  String?
+  adminChannelId    String?
+  logChannelId      String?
+  reviewerRoleIds   Json?    // Array of role IDs that can review
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
