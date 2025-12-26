@@ -19,7 +19,7 @@ interface VerificationData {
   answers: Array<{
     question: string;
     answer: string;
-  }>;
+  }>;و
   integrityFlags: {
     copyPasteCount: number;
     tabSwitchCount: number;
@@ -174,21 +174,42 @@ export async function handleButtonInteraction(client: Client, interaction: Butto
       components: [disabledRow],
     });
 
-    // Update roles via separate API call
-    const verificationData = await response.json();
-    if (verificationData.attempt?.user?.discordId) {
-      await fetch(`${process.env.WEB_API_URL}/api/roles/update`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-secret': process.env.API_SECRET!,
-        },
-        body: JSON.stringify({
-          discordId: verificationData.attempt.user.discordId,
-          decision,
-        }),
-      });
-    }
+// تعريف الواجهة داخل الدالة (أو يمكنك وضعها في الأعلى إذا أردت)
+interface VerificationAPIResponse {
+  attempt?: {
+    user?: {
+      discordId?: string;
+    };
+  };
+}
+
+// استلام واستخدام البيانات من استجابة API
+const rawData = await response.json();
+
+let verificationData: VerificationAPIResponse;
+
+// التحقق من أن rawData كائن وليس null أو غيره
+if (typeof rawData === 'object' && rawData !== null) {
+  verificationData = rawData as VerificationAPIResponse;
+} else {
+  console.warn('البيانات المستلمة من API غير صالحة (ليست كائنًا).');
+  verificationData = {}; // تهيئة ككائن فارغ لتجنب الأخطاء
+}
+
+// تحديث الأدوار عبر استدعاء API منفصل
+if (verificationData.attempt?.user?.discordId) {
+  await fetch(`${process.env.WEB_API_URL}/api/roles/update`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-secret': process.env.API_SECRET!,
+    },
+    body: JSON.stringify({
+      discordId: verificationData.attempt.user.discordId,
+      decision,
+    }),
+  });
+}
 
     // Log to log channel
     const logChannel = client.channels.cache.get(process.env.LOG_CHANNEL_ID!) as TextChannel;
