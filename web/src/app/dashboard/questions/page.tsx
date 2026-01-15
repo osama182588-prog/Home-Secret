@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-type QuestionType = 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'SHORT_ANSWER';
+type QuestionType = 'SHORT_ANSWER';
 type Difficulty = 'EASY' | 'MEDIUM' | 'HARD';
 
 interface Question {
@@ -11,8 +11,6 @@ interface Question {
   type: QuestionType;
   difficulty: Difficulty;
   category: string;
-  options?: string[];
-  correctAnswer?: string;
   enabled: boolean;
 }
 
@@ -20,26 +18,22 @@ const sampleQuestions: Question[] = [
   {
     id: '1',
     content: 'ما هو قانون NLR؟',
-    type: 'MULTIPLE_CHOICE',
+    type: 'SHORT_ANSWER',
     difficulty: 'EASY',
     category: 'الرول بلاي الأساسية',
-    options: ['قانون يمنع التحدث عند فقدان الوعي', 'قانون يسمح بالقتل', 'قانون للمركبات', 'قانون للأسلحة'],
-    correctAnswer: 'قانون يمنع التحدث عند فقدان الوعي',
     enabled: true,
   },
   {
     id: '2',
-    content: 'هل يُسمح باستخدام معلومات من البث المباشر؟',
-    type: 'TRUE_FALSE',
+    content: 'اشرح ما المقصود بـ MetaGaming؟',
+    type: 'SHORT_ANSWER',
     difficulty: 'EASY',
     category: 'الرول بلاي الأساسية',
-    options: ['نعم', 'لا'],
-    correctAnswer: 'لا',
     enabled: true,
   },
   {
     id: '3',
-    content: 'اشرح ما المقصود بـ PowerGaming',
+    content: 'اشرح ما المقصود بـ PowerGaming؟',
     type: 'SHORT_ANSWER',
     difficulty: 'MEDIUM',
     category: 'الرول بلاي الأساسية',
@@ -59,19 +53,16 @@ const categories = [
 export default function QuestionsPage() {
   const [questions, setQuestions] = useState<Question[]>(sampleQuestions);
   const [showAddQuestion, setShowAddQuestion] = useState(false);
-  const [filter, setFilter] = useState<{ type?: QuestionType; difficulty?: Difficulty; category?: string }>({});
+  const [filter, setFilter] = useState<{ difficulty?: Difficulty; category?: string }>({});
   const [formData, setFormData] = useState<Partial<Question>>({
     content: '',
-    type: 'MULTIPLE_CHOICE',
+    type: 'SHORT_ANSWER',
     difficulty: 'MEDIUM',
     category: '',
-    options: ['', '', '', ''],
-    correctAnswer: '',
     enabled: true,
   });
 
   const filteredQuestions = questions.filter(q => {
-    if (filter.type && q.type !== filter.type) return false;
     if (filter.difficulty && q.difficulty !== filter.difficulty) return false;
     if (filter.category && q.category !== filter.category) return false;
     return true;
@@ -83,22 +74,18 @@ export default function QuestionsPage() {
     const newQuestion: Question = {
       id: Date.now().toString(),
       content: formData.content!,
-      type: formData.type!,
+      type: 'SHORT_ANSWER',
       difficulty: formData.difficulty!,
       category: formData.category!,
-      options: formData.type !== 'SHORT_ANSWER' ? formData.options?.filter(o => o) : undefined,
-      correctAnswer: formData.correctAnswer,
       enabled: formData.enabled!,
     };
     
     setQuestions(prev => [...prev, newQuestion]);
     setFormData({
       content: '',
-      type: 'MULTIPLE_CHOICE',
+      type: 'SHORT_ANSWER',
       difficulty: 'MEDIUM',
       category: '',
-      options: ['', '', '', ''],
-      correctAnswer: '',
       enabled: true,
     });
     setShowAddQuestion(false);
@@ -123,12 +110,8 @@ export default function QuestionsPage() {
     }
   };
 
-  const getTypeBadge = (type: QuestionType) => {
-    switch (type) {
-      case 'MULTIPLE_CHOICE': return <span className="badge badge-info">اختيار متعدد</span>;
-      case 'TRUE_FALSE': return <span className="badge badge-info">صح/خطأ</span>;
-      case 'SHORT_ANSWER': return <span className="badge badge-info">إجابة قصيرة</span>;
-    }
+  const getTypeBadge = () => {
+    return <span className="badge badge-info">إجابة كتابية</span>;
   };
 
   return (
@@ -173,17 +156,6 @@ export default function QuestionsPage() {
         <h3 className="font-semibold mb-4">🔍 تصفية</h3>
         <div className="flex flex-wrap gap-4">
           <select
-            value={filter.type || ''}
-            onChange={(e) => setFilter(prev => ({ ...prev, type: e.target.value as QuestionType || undefined }))}
-            className="input w-auto"
-          >
-            <option value="">كل الأنواع</option>
-            <option value="MULTIPLE_CHOICE">اختيار متعدد</option>
-            <option value="TRUE_FALSE">صح/خطأ</option>
-            <option value="SHORT_ANSWER">إجابة قصيرة</option>
-          </select>
-          
-          <select
             value={filter.difficulty || ''}
             onChange={(e) => setFilter(prev => ({ ...prev, difficulty: e.target.value as Difficulty || undefined }))}
             className="input w-auto"
@@ -205,7 +177,7 @@ export default function QuestionsPage() {
             ))}
           </select>
           
-          {(filter.type || filter.difficulty || filter.category) && (
+          {(filter.difficulty || filter.category) && (
             <button
               onClick={() => setFilter({})}
               className="btn btn-secondary text-sm"
@@ -226,29 +198,11 @@ export default function QuestionsPage() {
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-2">
-                  {getTypeBadge(question.type)}
+                  {getTypeBadge()}
                   {getDifficultyBadge(question.difficulty)}
                   <span className="text-sm text-[var(--foreground-muted)]">{question.category}</span>
                 </div>
                 <h3 className="font-semibold text-lg mb-3">{question.content}</h3>
-                
-                {question.options && (
-                  <div className="grid grid-cols-2 gap-2">
-                    {question.options.map((option, index) => (
-                      <div
-                        key={index}
-                        className={`p-2 rounded-lg text-sm ${
-                          option === question.correctAnswer
-                            ? 'bg-[var(--success)]/20 text-[var(--success)] border border-[var(--success)]'
-                            : 'bg-[var(--background)]'
-                        }`}
-                      >
-                        {option}
-                        {option === question.correctAnswer && ' ✓'}
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
               
               <div className="flex items-center gap-2">
@@ -290,19 +244,6 @@ export default function QuestionsPage() {
             
             <div className="space-y-4">
               <div>
-                <label className="block font-semibold mb-2">نوع السؤال</label>
-                <select
-                  value={formData.type}
-                  onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as QuestionType }))}
-                  className="input"
-                >
-                  <option value="MULTIPLE_CHOICE">اختيار متعدد</option>
-                  <option value="TRUE_FALSE">صح/خطأ</option>
-                  <option value="SHORT_ANSWER">إجابة قصيرة</option>
-                </select>
-              </div>
-              
-              <div>
                 <label className="block font-semibold mb-2">الصعوبة</label>
                 <select
                   value={formData.difficulty}
@@ -338,49 +279,6 @@ export default function QuestionsPage() {
                   placeholder="اكتب السؤال هنا..."
                 />
               </div>
-              
-              {formData.type === 'MULTIPLE_CHOICE' && (
-                <div>
-                  <label className="block font-semibold mb-2">الخيارات</label>
-                  {formData.options?.map((option, index) => (
-                    <input
-                      key={index}
-                      type="text"
-                      value={option}
-                      onChange={(e) => {
-                        const newOptions = [...(formData.options || [])];
-                        newOptions[index] = e.target.value;
-                        setFormData(prev => ({ ...prev, options: newOptions }));
-                      }}
-                      className="input mb-2"
-                      placeholder={`الخيار ${index + 1}`}
-                    />
-                  ))}
-                </div>
-              )}
-              
-              {formData.type !== 'SHORT_ANSWER' && (
-                <div>
-                  <label className="block font-semibold mb-2">الإجابة الصحيحة</label>
-                  <select
-                    value={formData.correctAnswer}
-                    onChange={(e) => setFormData(prev => ({ ...prev, correctAnswer: e.target.value }))}
-                    className="input"
-                  >
-                    <option value="">اختر الإجابة الصحيحة</option>
-                    {formData.type === 'TRUE_FALSE' ? (
-                      <>
-                        <option value="نعم">نعم</option>
-                        <option value="لا">لا</option>
-                      </>
-                    ) : (
-                      formData.options?.filter(o => o).map((option, index) => (
-                        <option key={index} value={option}>{option}</option>
-                      ))
-                    )}
-                  </select>
-                </div>
-              )}
               
               <label className="flex items-center gap-2">
                 <input

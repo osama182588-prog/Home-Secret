@@ -26,10 +26,13 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const count = body.count || 5;
+    const count = body.count || 10;
 
     const questions = await prisma.question.findMany({
-      where: { enabled: true },
+      where: { 
+        enabled: true,
+        type: 'SHORT_ANSWER',
+      },
       select: {
         id: true,
         content: true,

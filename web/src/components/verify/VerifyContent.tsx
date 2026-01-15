@@ -10,8 +10,7 @@ type Step = 'intro' | 'rules' | 'exam' | 'submitted' | 'loading';
 interface Question {
   id: string;
   content: string;
-  type: 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'SHORT_ANSWER';
-  options?: string[];
+  type: 'SHORT_ANSWER';
   category?: { name: string } | null;
 }
 
@@ -19,7 +18,6 @@ interface APIQuestion {
   id: string;
   content: string;
   type: string;
-  options?: unknown;
   category?: { name: string } | null;
 }
 
@@ -32,11 +30,6 @@ interface IntegrityFlags {
   copyPasteCount: number;
   tabSwitchCount: number;
   startTime: number;
-}
-
-// Type guard for string array
-function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every(item => typeof item === 'string');
 }
 
 export default function VerifyContent() {
@@ -65,7 +58,7 @@ export default function VerifyContent() {
       const response = await fetch('/api/questions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ count: 5 }),
+        body: JSON.stringify({ count: 10 }),
       });
       
       if (!response.ok) {
@@ -82,10 +75,7 @@ export default function VerifyContent() {
       const transformedQuestions: Question[] = data.map((q: APIQuestion) => ({
         id: q.id,
         content: q.content,
-        type: q.type as 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'SHORT_ANSWER',
-        options: q.type === 'TRUE_FALSE' 
-          ? ['نعم', 'لا'] 
-          : (isStringArray(q.options) ? q.options : undefined),
+        type: 'SHORT_ANSWER' as const,
         category: q.category,
       }));
       
@@ -275,9 +265,9 @@ export default function VerifyContent() {
                 2
               </span>
               <div>
-                <span className="font-semibold">اختبار من 5 أسئلة</span>
+                <span className="font-semibold">اختبار كتابي من 10 أسئلة</span>
                 <p className="text-sm text-[var(--foreground-muted)]">
-                  أجب على أسئلة عشوائية حول القوانين
+                  أجب على أسئلة كتابية حول القوانين
                 </p>
               </div>
             </li>
@@ -422,57 +412,12 @@ export default function VerifyContent() {
             {question?.content}
           </h3>
 
-          {question?.type === 'MULTIPLE_CHOICE' && (
-            <div className="space-y-3">
-              {question.options?.map((option, index) => (
-                <label
-                  key={index}
-                  className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-colors ${
-                    currentAnswer === option
-                      ? 'border-[var(--primary)] bg-[var(--primary)]/10'
-                      : 'border-[var(--border)] hover:border-[var(--primary)]/50'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="answer"
-                    value={option}
-                    checked={currentAnswer === option}
-                    onChange={(e) => setCurrentAnswer(e.target.value)}
-                    className="w-4 h-4 accent-[var(--primary)]"
-                  />
-                  <span>{option}</span>
-                </label>
-              ))}
-            </div>
-          )}
-
-          {question?.type === 'TRUE_FALSE' && (
-            <div className="flex gap-4">
-              {question.options?.map((option, index) => (
-                <button
-                  key={index}
-                  onClick={() => setCurrentAnswer(option)}
-                  className={`flex-1 p-4 rounded-lg border font-semibold transition-colors ${
-                    currentAnswer === option
-                      ? 'border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]'
-                      : 'border-[var(--border)] hover:border-[var(--primary)]/50'
-                  }`}
-                >
-                  {option}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {question?.type === 'SHORT_ANSWER' && (
-            <textarea
-              value={currentAnswer}
-              onChange={(e) => setCurrentAnswer(e.target.value)}
-              placeholder="اكتب إجابتك هنا..."
-              className="input min-h-[150px] resize-none"
-            />
-          )}
+          <textarea
+            value={currentAnswer}
+            onChange={(e) => setCurrentAnswer(e.target.value)}
+            placeholder="اكتب إجابتك هنا..."
+            className="input min-h-[150px] resize-none"
+          />
         </div>
 
         <button
