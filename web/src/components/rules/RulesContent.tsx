@@ -1,10 +1,27 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 
-// Static rules data (in production, this would come from database)
-const rulesData = [
+interface Rule {
+  id: string;
+  title: string;
+  content: string;
+  order?: number;
+  enabled?: boolean;
+}
+
+interface RuleCategory {
+  id: string;
+  name: string;
+  slug: string;
+  order?: number;
+  enabled?: boolean;
+  rules: Rule[];
+}
+
+// Static rules data as fallback
+const fallbackRulesData: RuleCategory[] = [
   {
     id: 'roleplay-basics',
     slug: 'roleplay-basics',
@@ -259,9 +276,34 @@ const rulesData = [
 ];
 
 export default function RulesContent() {
+  const [rulesData, setRulesData] = useState<RuleCategory[]>(fallbackRulesData);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSection, setActiveSection] = useState('');
   const [agreed, setAgreed] = useState(false);
+
+  // Fetch rules from API
+  const fetchRules = useCallback(async () => {
+    try {
+      const response = await fetch('/api/rules');
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.length > 0) {
+          // Use API data directly since it matches our structure
+          setRulesData(data);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching rules:', error);
+      // Keep using fallback data on error
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRules();
+  }, [fetchRules]);
 
   // Filter rules based on search
   const filteredRules = rulesData.map(category => ({
@@ -292,6 +334,18 @@ export default function RulesContent() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="spinner w-12 h-12 mx-auto mb-4" />
+          <p className="text-[var(--foreground-muted)]">جاري تحميل القوانين...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col lg:flex-row gap-8">
