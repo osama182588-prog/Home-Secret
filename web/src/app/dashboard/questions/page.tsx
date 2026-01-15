@@ -25,7 +25,7 @@ const sampleQuestions: Question[] = [
   },
   {
     id: '2',
-    content: 'اشرح ما المقصود بـ MetaGaming',
+    content: 'اشرح ما المقصود بـ MetaGaming؟',
     type: 'SHORT_ANSWER',
     difficulty: 'EASY',
     category: 'الرول بلاي الأساسية',
@@ -33,7 +33,7 @@ const sampleQuestions: Question[] = [
   },
   {
     id: '3',
-    content: 'اشرح ما المقصود بـ PowerGaming',
+    content: 'اشرح ما المقصود بـ PowerGaming؟',
     type: 'SHORT_ANSWER',
     difficulty: 'MEDIUM',
     category: 'الرول بلاي الأساسية',
