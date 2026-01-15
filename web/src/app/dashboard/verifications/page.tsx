@@ -39,7 +39,12 @@ export default function VerificationsPage() {
 
   const fetchVerifications = useCallback(async () => {
     try {
-      const response = await fetch(`/api/admin/verification?status=${filter}`);
+      // Validate filter against allowed values to prevent injection
+      const validFilters: StatusFilter[] = ['ALL', 'PENDING', 'PASSED', 'FAILED'];
+      const safeFilter = validFilters.includes(filter) ? filter : 'PENDING';
+      const params = new URLSearchParams({ status: safeFilter });
+      
+      const response = await fetch(`/api/admin/verification?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
         setVerifications(data.attempts || []);

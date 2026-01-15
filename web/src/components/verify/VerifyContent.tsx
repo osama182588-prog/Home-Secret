@@ -15,6 +15,14 @@ interface Question {
   category?: { name: string } | null;
 }
 
+interface APIQuestion {
+  id: string;
+  content: string;
+  type: string;
+  options?: unknown;
+  category?: { name: string } | null;
+}
+
 interface Answer {
   questionId: string;
   answer: string;
@@ -24,6 +32,11 @@ interface IntegrityFlags {
   copyPasteCount: number;
   tabSwitchCount: number;
   startTime: number;
+}
+
+// Type guard for string array
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every(item => typeof item === 'string');
 }
 
 export default function VerifyContent() {
@@ -59,20 +72,20 @@ export default function VerifyContent() {
         throw new Error('فشل في تحميل الأسئلة');
       }
       
-      const data = await response.json();
+      const data: APIQuestion[] = await response.json();
       
       if (!data || data.length === 0) {
         throw new Error('لا توجد أسئلة متاحة حالياً');
       }
       
       // Transform the data to match our expected format
-      const transformedQuestions: Question[] = data.map((q: { id: string; content: string; type: string; options?: unknown; category?: { name: string } | null }) => ({
+      const transformedQuestions: Question[] = data.map((q: APIQuestion) => ({
         id: q.id,
         content: q.content,
         type: q.type as 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'SHORT_ANSWER',
         options: q.type === 'TRUE_FALSE' 
           ? ['نعم', 'لا'] 
-          : (Array.isArray(q.options) ? q.options : undefined),
+          : (isStringArray(q.options) ? q.options : undefined),
         category: q.category,
       }));
       
