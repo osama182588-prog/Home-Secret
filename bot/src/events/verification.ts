@@ -19,7 +19,7 @@ interface VerificationData {
   answers: Array<{
     question: string;
     answer: string;
-  }>;و
+  }>;
   integrityFlags: {
     copyPasteCount: number;
     tabSwitchCount: number;

@@ -5,84 +5,15 @@ import { useSession, signIn } from 'next-auth/react';
 import Link from 'next/link';
 import Image from 'next/image';
 
-// Sample questions (in production, these come from database)
-const sampleQuestions = [
-  {
-    id: '1',
-    content: 'ما هو قانون NLR؟',
-    type: 'MULTIPLE_CHOICE' as const,
-    options: [
-      'قانون يمنع التحدث أو التحرك عند فقدان الوعي',
-      'قانون يسمح بالقتل العشوائي',
-      'قانون يمنع استخدام المركبات',
-      'قانون يسمح باستخدام معلومات خارج اللعبة',
-    ],
-    category: 'الرول بلاي الأساسية',
-  },
-  {
-    id: '2',
-    content: 'هل يُسمح باستخدام معلومات من البث المباشر داخل اللعبة؟',
-    type: 'TRUE_FALSE' as const,
-    options: ['نعم', 'لا'],
-    category: 'الرول بلاي الأساسية',
-  },
-  {
-    id: '3',
-    content: 'ما هو الحد الأدنى للعمر المطلوب للعب على الخادم؟',
-    type: 'MULTIPLE_CHOICE' as const,
-    options: ['16 سنة', '18 سنة', '21 سنة', 'لا يوجد حد عمري'],
-    category: 'القوانين العامة',
-  },
-  {
-    id: '4',
-    content: 'كم عدد الشخصيات المسموح بها لكل لاعب؟',
-    type: 'MULTIPLE_CHOICE' as const,
-    options: ['شخصية واحدة', 'شخصيتان', 'ثلاث شخصيات', 'بلا حدود'],
-    category: 'القوانين العامة',
-  },
-  {
-    id: '5',
-    content: 'ما المقصود بـ PowerGaming؟',
-    type: 'SHORT_ANSWER' as const,
-    category: 'الرول بلاي الأساسية',
-  },
-  {
-    id: '6',
-    content: 'هل يُسمح للشرطة بالمداهمة بدون أمر قضائي؟',
-    type: 'TRUE_FALSE' as const,
-    options: ['نعم', 'لا'],
-    category: 'قوانين الشرطة',
-  },
-  {
-    id: '7',
-    content: 'ما هو الحد الأقصى لعدد أعضاء العصابة؟',
-    type: 'MULTIPLE_CHOICE' as const,
-    options: ['10 أعضاء', '15 عضو', '25 عضو', '50 عضو'],
-    category: 'قوانين العصابات',
-  },
-  {
-    id: '8',
-    content: 'ماذا يحدث عند التحذير الرابع؟',
-    type: 'MULTIPLE_CHOICE' as const,
-    options: ['إنذار شفهي', 'حظر 24 ساعة', 'حظر 7 أيام', 'حظر دائم'],
-    category: 'نظام التحذيرات',
-  },
-  {
-    id: '9',
-    content: 'اشرح ما المقصود بقانون NVL وأعطِ مثالاً.',
-    type: 'SHORT_ANSWER' as const,
-    category: 'الرول بلاي الأساسية',
-  },
-  {
-    id: '10',
-    content: 'هل يُسمح لأفراد الإسعاف بحمل السلاح أثناء الخدمة؟',
-    type: 'TRUE_FALSE' as const,
-    options: ['نعم', 'لا'],
-    category: 'قوانين الإسعاف',
-  },
-];
+type Step = 'intro' | 'rules' | 'exam' | 'submitted' | 'loading';
 
-type Step = 'intro' | 'rules' | 'exam' | 'submitted';
+interface Question {
+  id: string;
+  content: string;
+  type: 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'SHORT_ANSWER';
+  options?: string[];
+  category?: { name: string } | null;
+}
 
 interface Answer {
   questionId: string;
@@ -99,30 +30,68 @@ export default function VerifyContent() {
   const { data: session, status } = useSession();
   const [step, setStep] = useState<Step>('intro');
   const [agreedToRules, setAgreedToRules] = useState(false);
-  const [questions, setQuestions] = useState<typeof sampleQuestions>([]);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [currentAnswer, setCurrentAnswer] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [integrityFlags, setIntegrityFlags] = useState<IntegrityFlags>({
     copyPasteCount: 0,
     tabSwitchCount: 0,
     startTime: 0,
   });
 
-  // Select random questions on exam start
-  const startExam = useCallback(() => {
-    const shuffled = [...sampleQuestions].sort(() => Math.random() - 0.5);
-    setQuestions(shuffled.slice(0, 5));
-    setCurrentQuestion(0);
-    setAnswers([]);
-    setCurrentAnswer('');
-    setIntegrityFlags({
-      copyPasteCount: 0,
-      tabSwitchCount: 0,
-      startTime: Date.now(),
-    });
-    setStep('exam');
+  // Fetch questions from API and start exam
+  const startExam = useCallback(async () => {
+    setIsLoadingQuestions(true);
+    setLoadError(null);
+    
+    try {
+      const response = await fetch('/api/questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ count: 5 }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('فشل في تحميل الأسئلة');
+      }
+      
+      const data = await response.json();
+      
+      if (!data || data.length === 0) {
+        throw new Error('لا توجد أسئلة متاحة حالياً');
+      }
+      
+      // Transform the data to match our expected format
+      const transformedQuestions: Question[] = data.map((q: { id: string; content: string; type: string; options?: unknown; category?: { name: string } | null }) => ({
+        id: q.id,
+        content: q.content,
+        type: q.type as 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'SHORT_ANSWER',
+        options: q.type === 'TRUE_FALSE' 
+          ? ['نعم', 'لا'] 
+          : (Array.isArray(q.options) ? q.options : undefined),
+        category: q.category,
+      }));
+      
+      setQuestions(transformedQuestions);
+      setCurrentQuestion(0);
+      setAnswers([]);
+      setCurrentAnswer('');
+      setIntegrityFlags({
+        copyPasteCount: 0,
+        tabSwitchCount: 0,
+        startTime: Date.now(),
+      });
+      setStep('exam');
+    } catch (error) {
+      console.error('Error loading questions:', error);
+      setLoadError(error instanceof Error ? error.message : 'حدث خطأ غير متوقع');
+    } finally {
+      setIsLoadingQuestions(false);
+    }
   }, []);
 
   // Track tab visibility changes
@@ -176,26 +145,29 @@ export default function VerifyContent() {
     }
   };
 
-  const handleFinalSubmit = async (_finalAnswers: Answer[]) => {
+  const handleFinalSubmit = async (finalAnswers: Answer[]) => {
     setIsSubmitting(true);
     
     try {
-      // In production, this would call the API
-      // await fetch('/api/verification/submit', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({
-      //     answers: finalAnswers,
-      //     integrityFlags,
-      //     questions: questions.map(q => ({ id: q.id, content: q.content })),
-      //   }),
-      // });
+      const response = await fetch('/api/verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          answers: finalAnswers,
+          integrityFlags,
+          questions: questions.map(q => ({ id: q.id, content: q.content })),
+        }),
+      });
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to submit verification');
+      }
+      
       setStep('submitted');
     } catch (error) {
       console.error('Error submitting verification:', error);
+      alert(error instanceof Error ? error.message : 'حدث خطأ أثناء إرسال الطلب');
     } finally {
       setIsSubmitting(false);
     }
@@ -369,16 +341,29 @@ export default function VerifyContent() {
           </label>
         </div>
 
+        {loadError && (
+          <div className="bg-[var(--error)]/10 border border-[var(--error)] rounded-lg p-4">
+            <p className="text-[var(--error)]">{loadError}</p>
+          </div>
+        )}
+
         <div className="flex gap-4">
           <button onClick={() => setStep('intro')} className="btn btn-secondary flex-1">
             ← السابق
           </button>
           <button
             onClick={startExam}
-            disabled={!agreedToRules}
-            className={`btn flex-1 ${agreedToRules ? 'btn-primary' : 'btn-secondary opacity-50 cursor-not-allowed'}`}
+            disabled={!agreedToRules || isLoadingQuestions}
+            className={`btn flex-1 ${agreedToRules && !isLoadingQuestions ? 'btn-primary' : 'btn-secondary opacity-50 cursor-not-allowed'}`}
           >
-            بدء الاختبار ➜
+            {isLoadingQuestions ? (
+              <span className="flex items-center gap-2">
+                <span className="spinner" />
+                جاري التحميل...
+              </span>
+            ) : (
+              'بدء الاختبار ➜'
+            )}
           </button>
         </div>
       </div>
@@ -398,7 +383,7 @@ export default function VerifyContent() {
               السؤال {currentQuestion + 1} من {questions.length}
             </span>
             <span className="badge badge-info">
-              {question?.category}
+              {question?.category?.name || 'عام'}
             </span>
           </div>
           <div className="w-full h-2 bg-[var(--background-secondary)] rounded-full overflow-hidden">
